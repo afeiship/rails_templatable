@@ -1,8 +1,0 @@
-<h1>Users#login</h1>
-<%= form_tag "/create_login_session" do %>
- <%= label_tag "用户名" %>
- <%= text_field_tag :name,params[:name]%>
- <%= label_tag "密码" %>
- <%= password_field_tag :password,params[:password] %>
- <%= submit_tag "登录" %>
-<% end %>

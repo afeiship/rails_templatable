@@ -1,45 +1,28 @@
-#rails-module-signin
-> Rails module for sign in.
+# RailsTemplatable
+Short description and motivation.
 
-## replace gem source
+## Usage
+How to use my plugin.
+
+## Installation
+Add this line to your application's Gemfile:
+
+```ruby
+gem "rails_templatable"
+```
+
+And then execute:
 ```bash
-gem source --remove https://rubygems.org/
-gem source -a https://gems.ruby-china.org
+$ bundle
 ```
 
-## initialize:
+Or install it yourself as:
 ```bash
-cd ~/github/rails-module-signin
-rails new .
-
-rails g model user name:string email:string password_digest:string
-rake db:migrate
-
-rails g controller users login
-
+$ gem install rails_templatable
 ```
 
-## some errors:
-```conf
-An error occurred while installing nokogiri (1.7.0.1), and Bundler cannot continue.
-Make sure that `gem install nokogiri -v '1.7.0.1'` succeeds before bundling.
+## Contributing
+Contribution directions go here.
 
-http://stackoverflow.com/questions/34651519/error-while-installing-nokogiri-1-6-7-on-el-capitan
-
-You should install xcode-select packages first, then try installing nokogiri again. Try these commands,
-
-xcode-select --install
-then try
-
-gem install nokogiri
-with whatever Nokogiri version you want.
-Nokogiri depends on multiple libraries like libxslt, libxml and zlib. Dev versions (including source) of these should be installed before installing Nokogiri in any Linux distribution. For OS X, the above command should work I guess.
-The actual solution is in the comments below.
-```
-
-
-
-## resources:
-+ http://www.jb51.net/article/86876.htm
-+ https://gist.github.com/thebucknerlife/10090014
-+ https://www.railstutorial.org/book/basic_login
+## License
+The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
