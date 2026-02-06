@@ -1,0 +1,433 @@
+# Rails Templatable
+
+> Rails Templatable is a lightweight, reusable Rails Engine that enables any ActiveRecord model to associate with templates for content management via polymorphic many-to-many relationships.
+
+It provides a clean, namespace-isolated way to add template functionality to your Rails applications without polluting your models or database schema. The engine uses standard Rails conventions and is fully compatible with Rails 6.0+.
+
+**Important notes for AI agents:**
+- This is a Rails Engine, not a mountable engine (no routes, controllers, or views)
+- All models are namespaced under `RailsTemplatable` module
+- Table names are explicitly set to avoid conflicts: `rails_templatable_templates` and `rails_templatable_assignments`
+- The engine uses polymorphic associations, allowing templates to be assigned to ANY model
+- Uses `category` instead of `type` to avoid Rails STI (Single Table Inheritance) conflicts
+- Supports three content formats: HTML (0), Markdown (1), and TXT (2)
+- The `content_format` field uses Rails enum with new syntax: `enum :content_format, { html: 0, markdown: 1, txt: 2 }`
+
+## Documentation
+
+- [GitHub Repository](https://github.com/afeiship/rails_templatable): Source code and issue tracking
+- [README](README.md): Installation guide and basic usage examples
+- [PRD](docs/01-prd.md): Detailed product requirements and design specifications
+- [Usage Guide](docs/02-usage.md): Comprehensive usage examples
+- [Implementation Summary](docs/03-implementation-summary.md): Implementation details and testing results
+
+## Key Features
+
+- **Polymorphic Associations:** Assign templates to any ActiveRecord model (Post, WorkLog, User, etc.)
+- **Multiple Content Formats:** Support for HTML, Markdown, and plain text templates
+- **Database-level Constraints:** Unique indexes prevent duplicate template assignments
+- **Namespace Isolated:** All models under `RailsTemplatable` namespace to avoid conflicts
+- **Explicit Table Names:** No reliance on Rails auto-inflection
+- **Flexible Categories:** User-defined template categories (no hardcoded types)
+- **Rails 6.0+ Compatible:** Works with modern Rails versions (tested on Rails 8.1.2)
+- **Zero Configuration:** Works out of the box after migration
+
+## Installation
+
+Add to your Gemfile:
+
+```ruby
+gem 'rails_templatable'
+```
+
+Run migrations:
+
+```bash
+rails railties:install:migrations FROM=rails_templatable
+rails db:migrate
+```
+
+## Basic Usage
+
+### Include the Concern
+
+```ruby
+class Post < ApplicationRecord
+  include RailsTemplatable::HasTemplates
+end
+
+class WorkLog < ApplicationRecord
+  include RailsTemplatable::HasTemplates
+end
+```
+
+### Create and Assign Templates
+
+```ruby
+# Create an HTML template
+email_template = RailsTemplatable::Template.create!(
+  category: "email_template",
+  content: "<h1>Welcome!</h1><p>Hello {{name}}</p>",
+  content_format: :html
+)
+
+# Create a Markdown template
+doc_template = RailsTemplatable::Template.create!(
+  category: "documentation",
+  content: "# Documentation\n\nThis is a **markdown** template.",
+  content_format: :markdown
+)
+
+# Assign to a post
+post = Post.create(title: "Hello World")
+post.templates << email_template
+post.templates << doc_template
+
+# Check if post has the template
+post.templates.include?(email_template) # => true
+```
+
+### Query Methods
+
+```ruby
+# Get all posts with a specific template
+template.assigned_to(Post)
+# => [#<Post id: 1, ...>, #<Post id: 3, ...>]
+
+# Get all templates ever used on Post model
+RailsTemplatable::Template.for_model(Post)
+# => [#<RailsTemplatable::Template category: "email_template">, ...]
+
+# Filter templates by category
+post.templates.where(category: "email_template")
+
+# Filter templates by content format
+post.templates.html      # HTML templates only
+post.templates.markdown  # Markdown templates only
+post.templates.txt       # Plain text templates only
+```
+
+### Remove Templates
+
+```ruby
+# Remove a specific template
+post.templates.destroy(email_template)
+
+# Remove all templates
+post.templates.clear
+```
+
+## Database Schema
+
+### templates table
+
+```ruby
+create_table :rails_templatable_templates do |t|
+  t.string :category, null: false
+  t.text :content
+  t.integer :content_format, null: false, default: 2
+  t.timestamps
+end
+
+add_index :rails_templatable_templates, :category
+```
+
+**Field Details:**
+- `category` (string) - User-defined template category (e.g., "email_template", "documentation")
+- `content` (text) - Template content (static text, no variable replacement)
+- `content_format` (integer) - Content format: 0=HTML, 1=Markdown, 2=TXT (default)
+- Index on `category` for fast lookups
+
+### assignments table (join table)
+
+```ruby
+create_table :rails_templatable_assignments do |t|
+  t.references :template, null: false, foreign_key: { to_table: :rails_templatable_templates }
+  t.references :templatable, polymorphic: true, null: false
+  t.timestamps
+end
+
+add_index :rails_templatable_assignments,
+          [:template_id, :templatable_type, :templatable_id],
+          unique: true,
+          name: "index_templatable_assignments"
+```
+
+**Constraint:** Unique composite index prevents duplicate template assignments to the same record.
+
+## Content Formats
+
+The engine supports three content formats via Rails enum:
+
+```ruby
+enum :content_format, {
+  html: 0,      # HTML content
+  markdown: 1,  # Markdown content
+  txt: 2        # Plain text content (default)
+}
+```
+
+**Usage:**
+
+```ruby
+# Create different format templates
+html_template = RailsTemplatable::Template.create!(
+  category: "email",
+  content: "<h1>Welcome</h1>",
+  content_format: :html
+)
+
+markdown_template = RailsTemplatable::Template.create!(
+  category: "docs",
+  content: "# Guide\n\nInstructions here",
+  content_format: :markdown
+)
+
+txt_template = RailsTemplatable::Template.create!(
+  category: "notification",
+  content: "Simple text message",
+  content_format: :txt
+)
+
+# Query by format
+post.templates.html      # => [#<RailsTemplatable::Template content_format: 0>]
+post.templates.markdown  # => [#<RailsTemplatable::Template content_format: 1>]
+post.templates.txt       # => [#<RailsTemplatable::Template content_format: 2>]
+```
+
+## Available Methods
+
+### Template Instance Methods
+
+- `template.assigned_to(klass)` - Returns all records of the given class that have this template
+  ```ruby
+  template.assigned_to(Post)     # => [post1, post2]
+  template.assigned_to(WorkLog)  # => [work_log1, work_log3]
+  ```
+
+### Template Class Methods
+
+- `RailsTemplatable::Template.for_model(klass)` - Returns all templates ever used on the given model class
+  ```ruby
+  RailsTemplatable::Template.for_model(Post)  # => [template1, template2]
+  ```
+
+### Model Methods (with HasTemplates concern)
+
+- `model.templates` - Returns all templates assigned to this record
+- `model.templates << template` - Assign a template to this record
+- `model.templates.delete(template)` - Remove a specific template
+- `model.templates.clear` - Remove all templates
+- `model.rails_templatable_assignments` - Direct access to join records
+- `model.templates.where(category: "email_template")` - Filter by category
+- `model.templates.html` - Get HTML format templates only
+- `model.templates.markdown` - Get Markdown format templates only
+- `model.templates.txt` - Get plain text templates only
+
+## Advanced Usage
+
+### Custom Fields
+
+You can add custom fields to templates or assignments via migrations:
+
+```ruby
+# Add custom fields to templates
+add_column :rails_templatable_templates, :name, :string
+add_column :rails_templatable_templates, :description, :text
+add_column :rails_templatable_templates, :locale, :string, default: 'en'
+
+# Add custom fields to assignments
+add_column :rails_templatable_assignments, :priority, :integer, default: 0
+add_column :rails_templatable_assignments, :active, :boolean, default: true
+add_column :rails_templatable_assignments, :assigned_at, :datetime
+```
+
+### Accessing Assignment Data
+
+```ruby
+# Get assignment metadata
+assignment = post.rails_templatable_assignments.find_by(template_id: 1)
+assignment.priority  # => 1
+assignment.created_at  # => assignment time
+```
+
+### Conditional Scopes
+
+Add scopes to your models:
+
+```ruby
+class Post < ApplicationRecord
+  include RailsTemplatable::HasTemplates
+
+  scope :with_email_template, -> {
+    joins(:templates)
+      .where(rails_templatable_templates: { category: 'email_template' })
+  }
+
+  scope :with_html_templates, -> {
+    joins(:templates)
+      .where(rails_templatable_templates: { content_format: 0 })
+  }
+end
+
+# Usage
+Post.with_email_template  # All posts with email templates
+Post.with_html_templates  # All posts with HTML templates
+```
+
+### Checking Template Existence
+
+```ruby
+# Check if a post has templates from a specific category
+post.templates.where(category: "email_template").exists?  # => true/false
+
+# Check if a post has HTML templates
+post.templates.html.any?  # => true/false
+
+# Count templates by format
+post.templates.html.count      # => 2
+post.templates.markdown.count  # => 1
+post.templates.txt.count       # => 0
+```
+
+## Testing
+
+Run the test script in the dummy app:
+
+```bash
+cd test/dummy
+ruby test_templatable.rb
+```
+
+Expected output:
+```
+🚀 Testing Rails Templatable Engine
+==================================================
+
+📝 Creating templates...
+✓ Created HTML email template
+✓ Created Markdown documentation template
+✓ Created text notification template
+
+📄 Creating Posts and WorkLogs...
+✓ Created 2 Posts and 2 WorkLogs
+
+🔗 Associating templates with models...
+✓ Templates associated successfully
+
+🔍 Testing queries...
+  Post1 has 2 templates
+  Post1 templates: email_template, documentation
+  ...
+
+✅ All tests passed successfully!
+==================================================
+```
+
+## Project Structure
+
+```
+lib/
+├── rails_templatable.rb              # Main entry point
+├── rails_templatable/
+│   ├── engine.rb                     # Engine definition
+│   └── version.rb                    # Version info
+app/models/
+├── rails_templatable/
+│   ├── application_record.rb         # Base AR class
+│   ├── template.rb                   # Template model
+│   └── template_assignment.rb        # Join model
+└── models/concerns/
+    └── rails_templatable/
+        └── has_templates.rb          # Concern for host models
+db/migrate/
+└── 20250207000000_create_rails_templatable_tables.rb  # Migration
+test/dummy/
+├── app/models/
+│   ├── post.rb                       # Example: Post with HasTemplates
+│   └── work_log.rb                   # Example: WorkLog with HasTemplates
+├── db/schema.rb                      # Database schema
+└── test_templatable.rb               # Integration test script
+docs/
+├── 01-prd.md                         # Product Requirements Document
+├── 02-usage.md                       # Usage Guide
+└── 03-implementation-summary.md      # Implementation Summary
+```
+
+## Comparison with rails_badgeable
+
+| Feature | rails_badgeable | rails_templatable |
+|---------|-----------------|-------------------|
+| Main Model | Badge | Template |
+| Fields | name, description | category, content, content_format |
+| Enum Support | No | Yes (content_format: html/markdown/txt) |
+| Polymorphic Name | assignable | templatable |
+| Concern | HasBadges | HasTemplates |
+| STI Conflict Handling | N/A | Uses `category` to avoid `type` conflict |
+
+## Usage Notes for Agents
+
+- **Always use full namespace:** `RailsTemplatable::Template` (no alias generator yet)
+- **Categories are user-defined:** No predefined categories, use any string value
+- **Content formats are enforced:** Use symbols: `:html`, `:markdown`, `:txt`
+- **Polymorphic type stores class name:** Uses `base_class.name` for STI support
+- **Database prevents duplicates:** Unique index on `[template_id, templatable_type, templatable_id]`
+- **Engine is not mountable:** No routes, controllers, or views included
+- **Migrations must be copied:** Use `rails railties:install:migrations FROM=rails_templatable`
+- **Custom fields require migration:** Add columns directly to tables if needed
+- **Join table accessible:** `model.rails_templatable_assignments` for metadata access
+- **`category` field is indexed:** Efficient queries by category
+- **Default content_format is TXT:** New templates default to plain text (2)
+- **Rails 8.x enum syntax:** Must use `enum :content_format, { ... }` not `enum content_format: { ... }`
+
+## Architecture Decisions
+
+### Why `category` instead of `type`?
+
+Rails reserves the `type` column for Single Table Inheritance (STI). To avoid conflicts:
+- We use `category` for template classification
+- Users can define any category string (email_template, documentation, etc.)
+- No hardcoded enum or predefined types
+
+### Why explicit table names?
+
+To prevent any naming conflicts:
+- `rails_templatable_templates` - Template storage
+- `rails_templatable_assignments` - Polymorphic join table
+- No reliance on Rails auto-inflection
+
+### Why enum for content_format?
+
+Using Rails enum provides:
+- Type safety (only valid formats)
+- Helper methods (`html`, `markdown`, `txt`)
+- Integer storage for efficiency
+- Easy to extend with new formats
+
+## Development
+
+- Rails Engine (non-mountable)
+- Ruby 3.0+ required
+- Rails 6.0+ compatible (tested on Rails 8.1.2)
+- MIT License
+- Author: aric.zheng <1290657123@qq.com>
+- Version: 0.1.0
+
+## Future Enhancements
+
+Planned features for future versions:
+- Template variable interpolation (replace `{{name}}` with actual data)
+- Template versioning system
+- Template inheritance and overriding
+- Template preview functionality
+- I18n multi-language support
+- Short alias generator (like rails_badgeable)
+
+## Contributing
+
+When contributing to rails_templatable:
+1. Follow the existing architecture patterns
+2. Maintain backward compatibility
+3. Add tests for new features
+4. Update this llms.txt file with API changes
+5. Ensure Rails 6.0+ compatibility
