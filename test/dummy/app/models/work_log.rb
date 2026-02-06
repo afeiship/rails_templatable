@@ -1,3 +1,3 @@
 class WorkLog < ApplicationRecord
-  include RailsTemplatable::HasTemplates
+  include RailsTemplatable::HasTemplate
 end

@@ -16,81 +16,158 @@ bin/rails railties:install:migrations FROM=rails_templatable
 bin/rails db:migrate
 ```
 
+为需要使用模板的模型添加外键：
+
+```ruby
+# 在迁移中为每个模型添加
+add_reference :posts, :template,
+              foreign_key: { to_table: :rails_templatable_templates },
+              index: false
+```
+
 ## 快速开始
 
 ### 1. 在模型中启用模板功能
 
 ```ruby
 class Post < ApplicationRecord
-  include RailsTemplatable::HasTemplates
+  include RailsTemplatable::HasTemplate
 end
 
 class WorkLog < ApplicationRecord
-  include RailsTemplatable::HasTemplates
+  include RailsTemplatable::HasTemplate
 end
 ```
 
 ### 2. 创建模板
 
-```ruby
-# HTML 模板
-email_template = RailsTemplatable::Template.create!(
-  category: "email_template",
-  content: "<h1>Welcome!</h1><p>Hello {{name}}</p>",
-  content_format: :html
-)
+支持的模板分类（示例）：
 
-# Markdown 模板
-doc_template = RailsTemplatable::Template.create!(
-  category: "documentation",
-  content: "# Documentation\n\nThis is a **markdown** template.",
+```ruby
+# 功能需求模板
+feature_template = RailsTemplatable::Template.create!(
+  category: "feature_request",
+  content: "# Feature Request\n\n## Description\n\n## Acceptance Criteria",
   content_format: :markdown
 )
 
-# 纯文本模板
-notification_template = RailsTemplatable::Template.create!(
-  category: "notification",
-  content: "Simple text notification",
-  content_format: :txt
+# Bug 报告模板
+bug_template = RailsTemplatable::Template.create!(
+  category: "bug_report",
+  content: "## Bug Description\n\n## Steps to Reproduce\n\n## Expected Behavior",
+  content_format: :markdown
+)
+
+# 技术改进模板
+tech_template = RailsTemplatable::Template.create!(
+  category: "tech_improvement",
+  content: "## Current State\n\n## Proposed Improvement\n\n## Benefits",
+  content_format: :markdown
+)
+
+# 会议纪要模板
+meeting_template = RailsTemplatable::Template.create!(
+  category: "meeting_note",
+  content: "# Meeting: {title}\n\nDate: {date}\n\n## Attendees\n\n## Agenda",
+  content_format: :markdown
+)
+
+# API 设计模板
+api_template = RailsTemplatable::Template.create!(
+  category: "api_design",
+  content: "## Endpoint\n\n## Request\n\n## Response",
+  content_format: :markdown
 )
 ```
 
-### 3. 关联模板到模型
+### 3. 为模型实例分配模板
 
 ```ruby
-post = Post.create(title: "My Post", content: "Post content")
-
-# 方式 1: 通过关联添加
-post.templates << email_template
-post.templates << doc_template
-
-# 方式 2: 通过 assignment 创建
-RailsTemplatable::TemplateAssignment.create!(
-  template: email_template,
-  templatable: post
+# 创建时指定模板
+post = Post.create!(
+  title: "Add user authentication",
+  content: "Implement OAuth2 login",
+  template: feature_template
 )
+
+# 之后分配模板
+work_log = WorkLog.create!(title: "Daily standup")
+work_log.update(template: meeting_template)
+
+# 查看模板
+post.template.category  # => "feature_request"
+post.template.content   # => "# Feature Request..."
 ```
 
-### 4. 查询模板
+### 4. 更改模板
 
 ```ruby
-# 获取对象的所有模板
-post.templates
-
-# 获取特定分类的模板
-post.templates.where(category: "email_template")
-
-# 检查是否有特定类型的模板
-post.templates.where(category: "email_template").exists?
-
-# 获取使用某个模板的所有对象
-template.assigned_to(Post)
-
-# 获取在特定模型上使用过的所有模板
-RailsTemplatable::Template.for_model(Post)
+# 一个实例只能有一个模板，分配新模板会替换旧的
+post.update(template: bug_template)
+post.template.category  # => "bug_report"
 ```
 
-## 数据库字段
+### 5. 移除模板
+
+```ruby
+post.update(template: nil)
+post.template  # => nil
+```
+
+## 模板分类
+
+系统中常用的模板分类：
+
+| 分类 | 说明 |
+|------|------|
+| `feature_request` | 功能需求 |
+| `bug_report` | Bug 修复 |
+| `tech_improvement` | 技术改进 |
+| `meeting_note` | 会议纪要 |
+| `api_design` | API 设计 |
+
+用户可以自定义任意分类。
+
+## 查询模板
+
+```ruby
+# 获取实例的模板
+post.template
+
+# 按分类查询
+Post.joins(:template).where(rails_templatable_templates: { category: 'feature_request' })
+
+# 获取使用某个模板的所有实例
+Post.where(template: feature_template)
+
+# 按内容格式查询
+Post.joins(:template).where(rails_templatable_templates: { content_format: 1 })
+```
+
+## Content Format 枚举
+
+```ruby
+enum :content_format, {
+  html: 0,      # HTML 格式
+  markdown: 1,  # Markdown 格式
+  txt: 2        # 纯文本格式（默认）
+}
+```
+
+## 关系说明
+
+**1:N 关系**
+- 一个 Post/WorkLog 实例 **只能有一个** 模板
+- 一个 Template 可以被 **多个** 实例使用
+
+示例：
+```
+Post 1 → Template A (feature_request)
+Post 2 → Template B (bug_report)
+Post 3 → Template A (feature_request)  # 多个实例可使用同一模板
+```
+
+## 数据库 Schema
 
 ### rails_templatable_templates
 
@@ -103,91 +180,37 @@ RailsTemplatable::Template.for_model(Post)
 | created_at | datetime | 创建时间 |
 | updated_at | datetime | 更新时间 |
 
-### rails_templatable_assignments
+### 目标模型（如 posts）
+
+需要添加 `template_id` 外键：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| id | integer | 主键 |
-| template_id | integer | 关联的模板 ID（外键） |
-| templatable_id | integer | 关联对象的 ID（多态） |
-| templatable_type | string | 关联对象的类型（多态） |
-| created_at | datetime | 创建时间 |
-| updated_at | datetime | 更新时间 |
+| template_id | integer | 外键，关联到 rails_templatable_templates |
 
-## Content Format 枚举
+## 迁移示例
 
 ```ruby
-enum content_format: {
-  html: 0,      # HTML 格式
-  markdown: 1,  # Markdown 格式
-  txt: 2        # 纯文本格式
-}
+# 为已有模型添加模板支持
+class AddTemplateToPosts < ActiveRecord::Migration[6.0]
+  def change
+    add_reference :posts, :template,
+                  foreign_key: { to_table: :rails_templatable_templates },
+                  index: false
+  end
+end
 ```
 
 ## 验证规则
 
-### Template 模型
-
 - `category` - 必填
 - `content` - 必填
 - `content_format` - 必填，默认值为 `txt`
-
-### TemplateAssignment 模型
-
-- `template` - 必填
-- `templatable` - 必填
-- 唯一性约束：同一个模板不能重复关联到同一个对象
-
-## 辅助方法
-
-### Template 实例方法
-
-```ruby
-# 获取使用此模板的所有指定类型的对象
-template.assigned_to(Post)       # 返回使用此模板的所有 Post
-template.assigned_to(WorkLog)    # 返回使用此模板的所有 WorkLog
-```
-
-### Template 类方法
-
-```ruby
-# 获取在特定模型上使用过的所有模板
-RailsTemplatable::Template.for_model(Post)
-```
-
-## 示例：完整的 Post + Template 工作流
-
-```ruby
-# 1. 创建模板
-welcome_email = RailsTemplatable::Template.create!(
-  category: "welcome_email",
-  content: "<h1>Welcome {{username}}!</h1><p>Thanks for joining us.</p>",
-  content_format: :html
-)
-
-# 2. 创建文章
-post = Post.create!(
-  title: "Introduction to Rails",
-  content: "Rails is a web framework..."
-)
-
-# 3. 关联模板
-post.templates << welcome_email
-
-# 4. 查询
-post.templates.where(category: "welcome_email").count  # => 1
-post.templates.html.count                              # => 1
-
-# 5. 获取所有使用 welcome_email 模板的文章
-welcome_email.assigned_to(Post)
-
-# 6. 获取所有在 Post 上使用过的模板
-RailsTemplatable::Template.for_model(Post)
-```
+- 模板关联是可选的（optional: true）
 
 ## 测试
 
-在 dummy 应用中运行测试脚本：
+运行测试脚本：
 
 ```bash
 cd test/dummy
@@ -196,15 +219,10 @@ ruby test_templatable.rb
 
 ## 架构设计
 
-- 使用多态关联实现 N:N 关系
-- 避免使用 `type` 保留字，改用 `category`
-- 数据库级别的唯一性约束
-- 参考 rails_badgeable 的设计模式
+- **直接外键关联** - 无需中间表
+- **简单高效** - 一个实例只能有一个模板
+- **灵活扩展** - 模板可随时更改
 
-## 未来扩展
+## 与 N:N 设计的区别
 
-- 模板变量替换
-- 模板版本管理
-- 模板继承
-- 模板预览
-- I18n 多语言支持
+如果需要"一个实例有多个模板"，应该使用标签系统或多态关联，而非此引擎。

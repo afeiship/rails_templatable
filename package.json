@@ -2,7 +2,7 @@
   "name": "rails_templatable",
   "version": "0.1.1",
   "private": true,
-  "description": "A Rails engine for polymorphic, reusable templates on any model.",
+  "description": "A Rails engine for template management with 1:N relationship. Each record has one template, templates can be reused.",
   "scripts": {
     "dev": "cd test/dummy && rails server",
     "test": "cd test/dummy && ruby test_templatable.rb",
@@ -19,6 +19,7 @@
     "templatable",
     "template",
     "engine",
-    "polymorphic"
+    "one-to-many",
+    "1:N"
   ]
 }

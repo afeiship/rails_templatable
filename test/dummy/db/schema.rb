@@ -10,10 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_06_222111) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_06_224749) do
   create_table "posts", force: :cascade do |t|
     t.text "content"
     t.datetime "created_at", null: false
+    t.integer "template_id"
     t.string "title"
     t.datetime "updated_at", null: false
   end
@@ -40,9 +41,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_222111) do
   create_table "work_logs", force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
+    t.integer "template_id"
     t.string "title"
     t.datetime "updated_at", null: false
   end
 
+  add_foreign_key "posts", "rails_templatable_templates", column: "template_id"
   add_foreign_key "rails_templatable_assignments", "rails_templatable_templates", column: "template_id"
+  add_foreign_key "work_logs", "rails_templatable_templates", column: "template_id"
 end

@@ -6,8 +6,8 @@ Gem::Specification.new do |spec|
   spec.authors     = [ "aric.zheng" ]
   spec.email       = [ "1290657123@qq.com" ]
   spec.homepage    = "https://github.com/afeiship/rails_templatable"
-  spec.summary     = "A Rails engine for templatable models."
-  spec.description = "A lightweight Rails Engine that enables any ActiveRecord model to use templates for content generation and management."
+  spec.summary     = "A Rails engine for template management with 1:N relationship."
+  spec.description = "A lightweight Rails Engine that enables any ActiveRecord model to use predefined templates via a simple one-to-many relationship. Each record has one template, templates can be reused across multiple records. Supports HTML, Markdown, and plain text formats with flexible categories."
   spec.license     = "MIT"
 
   spec.metadata["homepage_uri"] = spec.homepage

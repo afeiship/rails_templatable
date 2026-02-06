@@ -16,21 +16,14 @@ class CreateRailsTemplatableTables < ActiveRecord::Migration[6.0]
 
     add_index :rails_templatable_templates, :category
 
-    # Create join table for polymorphic associations
-    # To add custom fields to assignments, add columns here, e.g.:
-    #   t.integer :priority
-    #   t.boolean :active, default: true
-    create_table :rails_templatable_assignments do |t|
-      t.references :template, null: false, foreign_key: { to_table: :rails_templatable_templates }
-      t.references :templatable, polymorphic: true, null: false, index: false
-
-      t.timestamps
-    end
-
-    # Custom composite index with short name
-    add_index :rails_templatable_assignments,
-              [:template_id, :templatable_type, :templatable_id],
-              unique: true,
-              name: "index_templatable_assignments"
+    # Note: No join table needed.
+    # Target models (posts, work_logs, etc.) should add their own template_id foreign key:
+    #
+    #   add_reference :posts, :template,
+    #                 foreign_key: { to_table: :rails_templatable_templates },
+    #                 index: false
+    #   add_reference :work_logs, :template,
+    #                 foreign_key: { to_table: :rails_templatable_templates },
+    #                 index: false
   end
 end

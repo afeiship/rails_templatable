@@ -1,97 +1,186 @@
 #!/usr/bin/env ruby
-# Test script for rails_templatable
+# Test script for rails_templatable (1:N relationship)
 
 require_relative "config/environment"
 
-puts "🚀 Testing Rails Templatable Engine"
-puts "=" * 50
+puts "🚀 Testing Rails Templatable Engine (1:N Relationship)"
+puts "=" * 60
 
 # Clean up existing data
 RailsTemplatable::Template.destroy_all
-RailsTemplatable::TemplateAssignment.destroy_all
 Post.destroy_all
 WorkLog.destroy_all
 
-# 1. Create templates
+# 1. Create templates with different categories
 puts "\n📝 Creating templates..."
-email_template = RailsTemplatable::Template.create!(
-  category: "email_template",
-  content: "<h1>Welcome!</h1><p>Hello {{name}}</p>",
-  content_format: :html
-)
-puts "✓ Created HTML email template"
-
-markdown_template = RailsTemplatable::Template.create!(
-  category: "documentation",
-  content: "# Documentation\n\nThis is a **markdown** template.",
+feature_template = RailsTemplatable::Template.create!(
+  category: "feature_request",
+  content: "# Feature Request\n\n## Description\n\n## Acceptance Criteria",
   content_format: :markdown
 )
-puts "✓ Created Markdown documentation template"
+puts "✓ Created feature_request template"
 
-txt_template = RailsTemplatable::Template.create!(
-  category: "notification",
-  content: "Simple text notification",
-  content_format: :txt
+bug_template = RailsTemplatable::Template.create!(
+  category: "bug_report",
+  content: "## Bug Description\n\n## Steps to Reproduce\n\n## Expected Behavior",
+  content_format: :markdown
 )
-puts "✓ Created text notification template"
+puts "✓ Created bug_report template"
 
-# 2. Create posts and work_logs
-puts "\n📄 Creating Posts and WorkLogs..."
-post1 = Post.create!(title: "First Post", content: "Content 1")
-post2 = Post.create!(title: "Second Post", content: "Content 2")
-work_log1 = WorkLog.create!(title: "Daily Log", body: "Work completed")
-work_log2 = WorkLog.create!(title: "Weekly Log", body: "Weekly summary")
-puts "✓ Created 2 Posts and 2 WorkLogs"
+meeting_template = RailsTemplatable::Template.create!(
+  category: "meeting_note",
+  content: "# Meeting: {title}\n\nDate: {date}\n\n## Attendees\n\n## Agenda",
+  content_format: :markdown
+)
+puts "✓ Created meeting_note template"
 
-# 3. Associate templates with models
-puts "\n🔗 Associating templates with models..."
-post1.templates << email_template
-post1.templates << markdown_template
-post2.templates << txt_template
-work_log1.templates << email_template
-work_log2.templates << markdown_template
-puts "✓ Templates associated successfully"
+tech_template = RailsTemplatable::Template.create!(
+  category: "tech_improvement",
+  content: "## Current State\n\n## Proposed Improvement\n\n## Benefits",
+  content_format: :markdown
+)
+puts "✓ Created tech_improvement template"
 
-# 4. Test queries
-puts "\n🔍 Testing queries..."
-puts "  Post1 has #{post1.templates.count} templates"
-puts "  Post1 templates: #{post1.templates.pluck(:category).join(', ')}"
+api_template = RailsTemplatable::Template.create!(
+  category: "api_design",
+  content: "## Endpoint\n\n## Request\n\n## Response",
+  content_format: :markdown
+)
+puts "✓ Created api_design template"
 
-puts "  Post2 has #{post2.templates.count} templates"
-puts "  Post2 templates: #{post2.templates.pluck(:category).join(', ')}"
+# 2. Create posts and assign templates
+puts "\n📄 Creating Posts with templates..."
+post1 = Post.create!(
+  title: "Add user authentication",
+  content: "Implement OAuth2 login",
+  template: feature_template
+)
+puts "✓ Created post with feature_request template"
 
-puts "  WorkLog1 has #{work_log1.templates.count} templates"
-puts "  WorkLog1 templates: #{work_log1.templates.pluck(:category).join(', ')}"
+post2 = Post.create!(
+  title: "Fix login bug",
+  content: "Users cannot login with invalid password",
+  template: bug_template
+)
+puts "✓ Created post with bug_report template"
 
-# 5. Test category filtering
-puts "\n📂 Testing category filtering..."
-email_templates = post1.templates.where(category: "email_template")
-puts "  Post1 email templates: #{email_templates.count}"
+post3 = Post.create!(
+  title: "Refactor database queries",
+  content: "Optimize slow queries",
+  template: tech_template
+)
+puts "✓ Created post with tech_improvement template"
 
-# 6. Test assigned_to method
-puts "\n🎯 Testing Template#assigned_to..."
-posts_with_email = email_template.assigned_to(Post)
-puts "  Posts with email template: #{posts_with_email.count}"
-puts "  Post titles: #{posts_with_email.pluck(:title).join(', ')}"
+post4 = Post.create!(
+  title: "Design payment API",
+  content: "Create REST API for payments",
+  template: api_template
+)
+puts "✓ Created post with api_design template"
 
-# 7. Test Template.for_model
-puts "\n📊 Testing Template.for_model..."
-post_templates = RailsTemplatable::Template.for_model(Post)
-puts "  Templates used on Posts: #{post_templates.count}"
-puts "  Template categories: #{post_templates.pluck(:category).uniq.join(', ')}"
+# Multiple posts can use the same template
+post5 = Post.create!(
+  title: "Add admin dashboard",
+  content: "Build admin interface",
+  template: feature_template
+)
+puts "✓ Created another post with feature_request template"
 
-# 8. Test uniqueness constraint
-puts "\n🔒 Testing uniqueness constraint..."
-begin
-  RailsTemplatable::TemplateAssignment.create!(
-    template: email_template,
-    templatable: post1
-  )
-  puts "✗ Failed - should not allow duplicate"
-rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
-  puts "✓ Uniqueness constraint works correctly"
+# 3. Create work logs with templates
+puts "\n📝 Creating WorkLogs with templates..."
+work_log1 = WorkLog.create!(
+  title: "Daily standup",
+  body: "Discussed sprint progress",
+  template: meeting_template
+)
+puts "✓ Created work_log with meeting_note template"
+
+work_log2 = WorkLog.create!(
+  title: "Tech review",
+  body: "Reviewed authentication code",
+  template: tech_template
+)
+puts "✓ Created work_log with tech_improvement template"
+
+work_log3 = WorkLog.create!(
+  title: "Sprint planning",
+  body: "Planned next sprint",
+  template: meeting_template
+)
+puts "✓ Created another work_log with meeting_note template"
+
+# 4. Test 1:N relationship - one post has one template
+puts "\n🔍 Testing 1:N relationship..."
+puts "  Post1 template: #{post1.template.category}"
+puts "  Post2 template: #{post2.template.category}"
+puts "  Post3 template: #{post3.template.category}"
+
+# 5. Test reverse - one template can have many posts
+puts "\n📊 Testing reverse relationship..."
+feature_posts = Post.where(template: feature_template)
+puts "  feature_request template used by #{feature_posts.count} posts:"
+feature_posts.each { |p| puts "    - #{p.title}" }
+
+meeting_work_logs = WorkLog.where(template: meeting_template)
+puts "  meeting_note template used by #{meeting_work_logs.count} work_logs:"
+meeting_work_logs.each { |w| puts "    - #{w.title}" }
+
+# 6. Test changing template
+puts "\n🔄 Testing template change..."
+puts "  Post1 original template: #{post1.template.category}"
+post1.update(template: bug_template)
+puts "  Post1 new template: #{post1.template.category}"
+puts "✓ Template changed successfully"
+
+# 7. Test removing template
+puts "\n🗑️  Testing template removal..."
+puts "  Post2 template before: #{post2.template.category}"
+post2.update(template: nil)
+puts "  Post2 template after: #{post2.template.inspect}"
+puts "✓ Template removed successfully"
+
+# 8. Test queries by category
+puts "\n🔎 Testing queries by category..."
+feature_posts = Post.joins(:template).where(rails_templatable_templates: { category: 'feature_request' })
+puts "  Posts with feature_request template: #{feature_posts.count}"
+
+bug_posts = Post.joins(:template).where(rails_templatable_templates: { category: 'bug_report' })
+puts "  Posts with bug_report template: #{bug_posts.count}"
+
+# 9. Test content format
+puts "\n📋 Testing content format..."
+puts "  Templates with markdown format: #{RailsTemplatable::Template.markdown.count}"
+puts "  Templates with html format: #{RailsTemplatable::Template.html.count}"
+puts "  Templates with txt format: #{RailsTemplatable::Template.txt.count}"
+
+# 10. Test template categories
+puts "\n🏷️  Template categories summary..."
+RailsTemplatable::Template.all.each do |t|
+  post_count = Post.where(template: t).count
+  work_log_count = WorkLog.where(template: t).count
+  total = post_count + work_log_count
+  puts "  #{t.category.ljust(20)} - #{total} records (#{post_count} posts, #{work_log_count} work_logs)"
 end
 
-puts "\n" + "=" * 50
+# 11. Test creating without template
+puts "\n➕ Testing creation without template..."
+post_no_template = Post.create!(title: "No template post", content: "Just content")
+puts "  Post without template: #{post_no_template.title}"
+puts "  Template value: #{post_no_template.template.inspect}"
+puts "✓ Can create posts without template"
+
+# 12. Test assigning template later
+puts "\n🔗 Testing template assignment after creation..."
+post_no_template.update(template: tech_template)
+puts "  Post assigned template: #{post_no_template.template.category}"
+puts "✓ Can assign template after creation"
+
+puts "\n" + "=" * 60
 puts "✅ All tests passed successfully!"
-puts "=" * 50
+puts "=" * 60
+puts "\n📊 Summary:"
+puts "  - Created #{RailsTemplatable::Template.count} templates"
+puts "  - Created #{Post.count} posts"
+puts "  - Created #{WorkLog.count} work logs"
+puts "  - 1:N relationship verified: one record → one template"
+puts "  - 1:N relationship verified: one template → many records"

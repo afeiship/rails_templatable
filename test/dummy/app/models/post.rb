@@ -1,3 +1,3 @@
 class Post < ApplicationRecord
-  include RailsTemplatable::HasTemplates
+  include RailsTemplatable::HasTemplate
 end

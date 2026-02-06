@@ -1,14 +1,13 @@
 # RailsTemplatable
 
-A lightweight Rails Engine that enables any ActiveRecord model to associate with templates for content management. Built with a polymorphic many-to-many relationship, allowing any model to have multiple templates.
+A lightweight Rails Engine that enables any ActiveRecord model to use predefined templates for content management. Built with a simple one-to-many relationship, allowing each model instance to have one template while templates can be reused across multiple instances.
 
 ## Features
 
-- 🎯 **Polymorphic Associations** - Attach templates to any ActiveRecord model
+- 🎯 **Simple 1:N Relationship** - Each record has one template, templates can be reused
 - 📝 **Multiple Content Formats** - Support for HTML, Markdown, and plain text
-- 🔗 **Many-to-Many Relationship** - Models can have multiple templates, templates can be used by multiple models
-- 🏷️ **Flexible Categories** - User-defined template categories (no hardcoded types)
-- 🔒 **Database Constraints** - Unique constraints at database level
+- 🏷️ **Flexible Categories** - Pre-defined categories (feature_request, bug_report, etc.) or custom
+- 🔗 **Direct Foreign Key** - No join table needed, cleaner database schema
 - 🚀 **Easy Integration** - Simple concern-based inclusion
 
 ## Installation
@@ -26,54 +25,90 @@ $ bin/rails railties:install:migrations FROM=rails_templatable
 $ bin/rails db:migrate
 ```
 
+For each model that will use templates, add a foreign key:
+
+```ruby
+add_reference :posts, :template,
+              foreign_key: { to_table: :rails_templatable_templates },
+              index: false
+```
+
 ## Quick Start
 
 ### 1. Enable templates in your models
 
 ```ruby
 class Post < ApplicationRecord
-  include RailsTemplatable::HasTemplates
+  include RailsTemplatable::HasTemplate
 end
 
 class WorkLog < ApplicationRecord
-  include RailsTemplatable::HasTemplates
+  include RailsTemplatable::HasTemplate
 end
 ```
 
 ### 2. Create templates
 
 ```ruby
-# HTML template
-email_template = RailsTemplatable::Template.create!(
-  category: "email_template",
-  content: "<h1>Welcome!</h1><p>Hello {{name}}</p>",
-  content_format: :html
+# Feature request template
+feature_template = RailsTemplatable::Template.create!(
+  category: "feature_request",
+  content: "# Feature Request\n\n## Description\n\n## Acceptance Criteria",
+  content_format: :markdown
 )
 
-# Markdown template
-doc_template = RailsTemplatable::Template.create!(
-  category: "documentation",
-  content: "# Documentation\n\nThis is a **markdown** template.",
+# Bug report template
+bug_template = RailsTemplatable::Template.create!(
+  category: "bug_report",
+  content: "## Bug Description\n\n## Steps to Reproduce\n\n## Expected Behavior",
   content_format: :markdown
 )
 ```
 
-### 3. Associate templates with models
+### 3. Assign templates to records
 
 ```ruby
-post = Post.create(title: "My Post", content: "Content here")
+post = Post.create!(
+  title: "Add user authentication",
+  content: "Implement OAuth2 login",
+  template: feature_template
+)
 
-# Add templates
-post.templates << email_template
-post.templates << doc_template
+# View template
+post.template.category  # => "feature_request"
+post.template.content   # => "# Feature Request..."
+```
 
-# Query templates
-post.templates.where(category: "email_template")
+## Template Categories
+
+Common template categories included:
+
+| Category | Description |
+|----------|-------------|
+| `feature_request` | Feature requests |
+| `bug_report` | Bug reports |
+| `tech_improvement` | Technical improvements |
+| `meeting_note` | Meeting notes |
+| `api_design` | API designs |
+
+You can create any custom category as needed.
+
+## Relationship Model
+
+**One-to-Many (1:N)**
+- One Post/WorkLog instance → One Template
+- One Template → Many instances
+
+Example:
+```
+Post 1 → Template A (feature_request)
+Post 2 → Template B (bug_report)
+Post 3 → Template A (feature_request)  # Reusable
 ```
 
 ## Content Formats
 
-The engine supports three content formats out of the box:
+Three content formats are supported:
 
 - `html` (0) - HTML content
 - `markdown` (1) - Markdown content
@@ -85,6 +120,22 @@ RailsTemplatable::Template.create!(
   content: "Simple text notification",
   content_format: :txt
 )
+```
+
+## Query Examples
+
+```ruby
+# Get a record's template
+post.template
+
+# Query by category
+Post.joins(:template).where(rails_templatable_templates: { category: 'feature_request' })
+
+# Get all records using a specific template
+Post.where(template: feature_template)
+
+# Query by content format
+Post.joins(:template).where(rails_templatable_templates: { content_format: 1 })
 ```
 
 ## Database Schema
@@ -99,41 +150,49 @@ RailsTemplatable::Template.create!(
 | `created_at` | datetime | Creation timestamp |
 | `updated_at` | datetime | Update timestamp |
 
-### rails_templatable_assignments
+### Target models (e.g., posts)
+
+Add `template_id` foreign key:
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `template_id` | integer | Foreign key to template |
-| `templatable_id` | integer | Polymorphic foreign key ID |
-| `templatable_type` | string | Polymorphic foreign key type |
-| `created_at` | datetime | Creation timestamp |
-| `updated_at` | datetime | Update timestamp |
+| `template_id` | integer | Foreign key to rails_templatable_templates |
 
 ## Advanced Usage
 
-### Query helper methods
+### Change template
 
 ```ruby
-# Get all objects using a specific template
-template.assigned_to(Post)
-
-# Get all templates used on a specific model class
-RailsTemplatable::Template.for_model(Post)
+# Assigning a new template replaces the old one
+post.update(template: bug_template)
+post.template.category  # => "bug_report"
 ```
 
-### Checking template associations
+### Remove template
 
 ```ruby
-# Check if a post has email templates
-post.templates.where(category: "email_template").exists?
-
-# Get all HTML format templates
-post.templates.html
+post.update(template: nil)
+post.template  # => nil
 ```
 
-## Why `category` instead of `type`?
+### Assign template after creation
 
-We use `category` instead of `type` to avoid conflicts with Rails' Single Table Inheritance (STI) feature, which reserves the `type` column for storing class names.
+```ruby
+post = Post.create(title: "New post")
+post.update(template: feature_template)
+```
+
+## Migration Example
+
+```ruby
+class AddTemplateToPosts < ActiveRecord::Migration[6.0]
+  def change
+    add_reference :posts, :template,
+                  foreign_key: { to_table: :rails_templatable_templates },
+                  index: false
+  end
+end
+```
 
 ## Development
 
@@ -144,45 +203,20 @@ cd test/dummy
 ruby test_templatable.rb
 ```
 
-### Database schema
-
-After running migrations, your schema will include:
-
-```ruby
-create_table "rails_templatable_templates" do |t|
-  t.string "category", null: false
-  t.text "content"
-  t.integer "content_format", default: 2, null: false
-  t.index ["category"], name: "index_rails_templatable_templates_on_category"
-end
-
-create_table "rails_templatable_assignments" do |t|
-  t.integer "template_id", null: false
-  t.string "templatable_type", null: false
-  t.integer "templatable_id", null: false
-  t.index ["template_id", "templatable_type", "templatable_id"],
-          name: "index_templatable_assignments", unique: true
-end
-```
-
 ## Architecture
 
-This engine follows the same pattern as [rails_badgeable](https://github.com/afeiship/rails_badgeable):
+- **Direct Foreign Key** - No join table needed
+- **Simple & Clean** - One record = One template
+- **Flexible** - Templates can be changed anytime
+- **Efficient Queries** - Direct JOIN without intermediate table
 
-- **Isolated namespace** - All models namespaced under `RailsTemplatable`
-- **Polymorphic associations** - Using `templatable` for flexible model associations
-- **Concern-based inclusion** - Simple `include RailsTemplatable::HasTemplates` to enable
-- **Database-level constraints** - Unique indexes prevent duplicate associations
+## Comparison with N:N Design
 
-## Comparison with rails_badgeable
+If you need "one record has multiple templates", consider using a tag system or polymorphic many-to-many associations instead.
 
-| Feature | rails_badgeable | rails_templatable |
-|---------|-----------------|-------------------|
-| Main Model | Badge | Template |
-| Fields | name, description | category, content, content_format |
-| Enum Support | No | Yes (content_format) |
-| Polymorphic Name | assignable | templatable |
-| Concern | HasBadges | HasTemplates |
+## Why `category` instead of `type`?
+
+We use `category` instead of `type` to avoid conflicts with Rails' Single Table Inheritance (STI) feature, which reserves the `type` column for storing class names.
 
 ## Future Enhancements
 
