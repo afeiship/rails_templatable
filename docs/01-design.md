@@ -79,7 +79,7 @@ class RailsTemplatable::Template < ApplicationRecord
   has_many :work_logs, class_name: "WorkLog", foreign_key: :template_id, optional: true
   # ... 其他模型
 
-  enum :content_format, { html: 0, markdown: 1, txt: 2 }
+  enum content_format: { html: 0, markdown: 1, txt: 2 }
 
   validates :category, presence: true
   validates :content, presence: true

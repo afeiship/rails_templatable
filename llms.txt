@@ -11,7 +11,7 @@ It provides a clean, namespace-isolated way to add template functionality to you
 - No join table - uses direct foreign key `template_id` on target models
 - Uses `category` instead of `type` to avoid Rails STI (Single Table Inheritance) conflicts
 - Supports three content formats: HTML (0), Markdown (1), and TXT (2)
-- The `content_format` field uses Rails enum with new syntax: `enum :content_format, { html: 0, markdown: 1, txt: 2 }`
+- The `content_format` field uses Rails enum (Rails 6 compatible: `enum content_format: { ... }`)
 
 ## Documentation
 
@@ -222,7 +222,7 @@ add_reference :posts, :template,
 The engine supports three content formats via Rails enum:
 
 ```ruby
-enum :content_format, {
+enum content_format: {
   html: 0,      # HTML content
   markdown: 1,  # Markdown content
   txt: 2        # Plain text content (default)
@@ -371,12 +371,13 @@ To prevent any naming conflicts:
 - **Custom fields require migration:** Add columns directly to tables if needed
 - **`category` field is indexed:** Efficient queries by category
 - **Default content_format is TXT:** New templates default to plain text (2)
-- **Rails 8.x enum syntax:** Must use `enum :content_format, { ... }` not `enum content_format: { ... }`
+- **Rails 6 enum syntax:** Uses `enum content_format: { ... }` for Rails 6+ compatibility
+- **Rails 8+ upgrade note:** Can use `enum :content_format, { ... }` syntax when dropping Rails 6 support
 
 ## Development
 
 - Rails Engine (non-mountable)
-- Ruby 3.0+ required
+- Ruby 2.6+ required
 - Rails 6.0+ compatible (tested on Rails 8.1.2)
 - MIT License
 - Author: aric.zheng <1290657123@qq.com>

@@ -2,7 +2,9 @@ module RailsTemplatable
   class Template < ApplicationRecord
     self.table_name = "rails_templatable_templates"
 
-    enum :content_format, { html: 0, markdown: 1, txt: 2 }
+    # Rails 6 compatible enum syntax
+    # For Rails 8+, use: enum :content_format, { html: 0, markdown: 1, txt: 2 }
+    enum content_format: { html: 0, markdown: 1, txt: 2 }
 
     validates :category, presence: true
     validates :content, presence: true

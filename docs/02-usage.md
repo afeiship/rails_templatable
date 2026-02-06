@@ -147,7 +147,7 @@ Post.joins(:template).where(rails_templatable_templates: { content_format: 1 })
 ## Content Format 枚举
 
 ```ruby
-enum :content_format, {
+enum content_format: {
   html: 0,      # HTML 格式
   markdown: 1,  # Markdown 格式
   txt: 2        # 纯文本格式（默认）
