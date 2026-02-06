@@ -1,0 +1,24 @@
+{
+  "name": "rails_templatable",
+  "version": "0.1.1",
+  "private": true,
+  "description": "A Rails engine for polymorphic, reusable templates on any model.",
+  "scripts": {
+    "dev": "cd test/dummy && rails server",
+    "test": "cd test/dummy && ruby test_templatable.rb",
+    "clean": "rm -rf *.gem",
+    "build": "gem build *.gemspec",
+    "pubpush": "gem push *.gem",
+    "release": "release-it",
+    "migrate": "cd test/dummy && bin/rails railties:install:migrations FROM=rails_templatable && bin/rails db:migrate",
+    "console": "cd test/dummy && bin/rails console"
+  },
+  "author": "aric.zheng",
+  "keywords": [
+    "rails",
+    "templatable",
+    "template",
+    "engine",
+    "polymorphic"
+  ]
+}
