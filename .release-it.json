@@ -8,7 +8,7 @@
       "npm run clean"
     ],
     "after:bump": [
-      "syncv -p lib/rails_statusable/version.rb",
+      "syncv -p lib/rails_templatable/version.rb",
       "npm run build",
       "npm run pubpush"
     ]
