@@ -1,6 +1,6 @@
 {
   "name": "rails_templatable",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "A Rails engine for template management with 1:N relationship. Each record has one template, templates can be reused.",
   "scripts": {
