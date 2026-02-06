@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
   spec.metadata["documentation_uri"] = "https://github.com/afeiship/rails_templatable/blob/main/README.md"
   spec.metadata["ai_assistant_uri"] = "https://github.com/afeiship/rails_templatable/blob/main/llms.txt"
 
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 2.6.0"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md", "llms.txt"]
