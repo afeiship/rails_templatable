@@ -4,7 +4,8 @@ module RailsTemplatable
 
     # Rails 6 compatible enum syntax
     # For Rails 8+, use: enum :content_format, { html: 0, markdown: 1, txt: 2 }
-    enum content_format: { html: 0, markdown: 1, txt: 2 }
+    # enum content_format: { html: 0, markdown: 1, txt: 2 }
+    enum :content_format, { html: 0, markdown: 1, txt: 2 }
 
     validates :category, presence: true
     validates :content, presence: true
